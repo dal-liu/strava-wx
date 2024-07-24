@@ -21,10 +21,10 @@ type ActivityResponse struct {
 	Start_latlng []float64
 }
 
-func refreshExpiredTokens(refreshToken string) (TokenResponse, error) {
-	req, err := http.NewRequest("POST", "https://www.strava.com/oauth/token?grant_type=refresh_token", nil)
+func refreshExpiredTokens(refreshToken string) (string, int, string, error) {
+	req, err := http.NewRequest("POST", "https://www.strava.com/api/v3/oauth/token?grant_type=refresh_token", nil)
 	if err != nil {
-		return TokenResponse{}, err
+		return "", 0, "", err
 	}
 
 	q := req.URL.Query()
@@ -35,17 +35,17 @@ func refreshExpiredTokens(refreshToken string) (TokenResponse, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return TokenResponse{}, err
+		return "", 0, "", err
 	}
 
 	defer resp.Body.Close()
 
 	var tr TokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return TokenResponse{}, err
+	if err = json.NewDecoder(resp.Body).Decode(&tr); err != nil {
+		return "", 0, "", err
 	}
 
-	return tr, nil
+	return tr.Access_token, tr.Expires_at, tr.Refresh_token, nil
 }
 
 func updateActivity(id int) error {
@@ -68,7 +68,7 @@ func updateActivity(id int) error {
 	defer resp.Body.Close()
 
 	var ar ActivityResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ar); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&ar); err != nil {
 		return err
 	}
 

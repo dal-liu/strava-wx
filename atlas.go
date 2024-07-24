@@ -11,29 +11,33 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type TokenDocument struct {
-	Athlete_id    int
-	Access_token  string
-	Expires_at    int
+var client *mongo.Client
+
+type AccessDocument struct {
+	Access_token string
+	Expires_at   int
+}
+
+type RefreshDocument struct {
 	Refresh_token string
 }
 
-var client *mongo.Client
+func (td AccessDocument) expired() bool {
+	return td.Expires_at <= int(time.Now().Unix())
+}
 
-func connectToMongoDB() error {
-	var err error
-
+func connectToMongoDB() (err error) {
 	uri := os.Getenv("MONGODB_URI")
 	if uri == "" {
 		return errors.New("MONGODB_URI is not set")
 	}
 	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(uri))
 	if err != nil {
-		return err
+		return
 	}
 
-	if err := client.Ping(context.TODO(), nil); err != nil {
-		return err
+	if err = client.Ping(context.TODO(), nil); err != nil {
+		return
 	}
 
 	return nil
@@ -47,34 +51,40 @@ func disconnectFromMongoDB() error {
 }
 
 func getAccessToken(athleteId int) (string, error) {
-	accessColl := client.Database("authDB").Collection("access_tokens")
 	filter := bson.M{"athlete_id": athleteId}
-	var doc TokenDocument
-	if err := accessColl.FindOne(context.TODO(), filter).Decode(&doc); err != nil {
+
+	accessColl := client.Database("authDB").Collection("access_tokens")
+	var ad AccessDocument
+	if err := accessColl.FindOne(context.TODO(), filter).Decode(&ad); err != nil {
 		return "", err
 	}
 
-	var token string
+	var returnToken string
 
-	if doc.Expires_at <= int(time.Now().Unix()) {
-		resp, err := refreshExpiredTokens(doc.Refresh_token)
+	if ad.expired() {
+		refreshColl := client.Database("authDB").Collection("refresh_tokens")
+		var rd RefreshDocument
+		if err := refreshColl.FindOne(context.TODO(), filter).Decode(&rd); err != nil {
+			return "", err
+		}
+
+		accessToken, expiresAt, refreshToken, err := refreshExpiredTokens(rd.Refresh_token)
 		if err != nil {
 			return "", err
 		}
 
-		accessUpdate := bson.M{"$set": bson.M{"access_token": resp.Access_token, "expires_at": resp.Expires_at}}
+		accessUpdate := bson.M{"$set": bson.M{"access_token": accessToken, "expires_at": expiresAt}}
 		go accessColl.UpdateOne(context.TODO(), filter, accessUpdate)
 
-		refreshUpdate := bson.M{"$set": bson.M{"refresh_token": resp.Refresh_token}}
-		go func() {
-			refreshColl := client.Database("authDB").Collection("refresh_tokens")
-			refreshColl.UpdateOne(context.TODO(), filter, refreshUpdate)
-		}()
+		refreshUpdate := bson.M{"$set": bson.M{"refresh_token": refreshToken}}
+		if rd.Refresh_token != refreshToken {
+			go refreshColl.UpdateOne(context.TODO(), filter, refreshUpdate)
+		}
 
-		token = resp.Access_token
+		returnToken = accessToken
 	} else {
-		token = doc.Access_token
+		returnToken = ad.Access_token
 	}
 
-	return token, nil
+	return returnToken, nil
 }

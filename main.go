@@ -59,16 +59,16 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	// err := connectToMongoDB()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	//
-	// defer func() {
-	// 	if err := disconnectFromMongoDB(); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }()
+	err := connectToMongoDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer func() {
+		if err := disconnectFromMongoDB(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	http.HandleFunc("/webhook", handler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
