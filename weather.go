@@ -179,10 +179,10 @@ func getDescription(lat, lon float64, date string) (string, error) {
 
 	defer resp.Body.Close()
 
-	var body WeatherResponse
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	var wr WeatherResponse
+	if err := json.NewDecoder(resp.Body).Decode(&wr); err != nil {
 		return "", err
 	}
 
-	return body.String(), nil
+	return wr.String(), nil
 }

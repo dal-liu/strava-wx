@@ -1,12 +1,21 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
 )
+
+type WebhookEvent struct {
+	Aspect_type string
+	Event_time  int
+	Object_id   int
+	Object_type string
+	Owner_id    int
+}
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -26,8 +35,23 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handlePost(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(w, "POST\n")
+func handlePost(w http.ResponseWriter, r *http.Request) {
+	var we WebhookEvent
+	if err := json.NewDecoder(r.Body).Decode(&we); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	go func() {
+		if we.Object_type != "activity" || we.Aspect_type != "create" || we.Owner_id != athleteId {
+			return
+		}
+		if err := updateActivity(we.Object_id); err != nil {
+			log.Println(err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func main() {
