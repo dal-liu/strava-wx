@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type WebhookEvent struct {
