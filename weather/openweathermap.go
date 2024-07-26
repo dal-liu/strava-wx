@@ -1,4 +1,4 @@
-package web
+package weather
 
 import (
 	"encoding/json"

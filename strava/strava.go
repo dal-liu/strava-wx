@@ -1,6 +1,7 @@
-package web
+package strava
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -44,7 +45,7 @@ func GetNewTokens(refreshToken string) (tr TokenResponse, err error) {
 	return tr, nil
 }
 
-func GetActivityData(activityId int, accessToken string) (ar ActivityResponse, err error) {
+func GetActivity(activityId int, accessToken string) (ar ActivityResponse, err error) {
 	req, err := http.NewRequest("GET", "https://www.strava.com/api/v3/activities/"+strconv.Itoa(activityId), nil)
 	if err != nil {
 		return ar, err
@@ -64,4 +65,22 @@ func GetActivityData(activityId int, accessToken string) (ar ActivityResponse, e
 	}
 
 	return ar, nil
+}
+
+func UpdateActivity(activityId int, accessToken string, description string) error {
+	payload := []byte(`{"description":"` + description + `"}`)
+	req, err := http.NewRequest("PUT", "https://www.strava.com/api/v3/activities/"+strconv.Itoa(activityId), bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	_, err = http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
