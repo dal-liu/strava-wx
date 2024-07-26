@@ -60,9 +60,7 @@ func handlePost(ctx context.Context, req events.LambdaFunctionURLRequest) (event
 			return
 		}
 
-		if accessToken.IsExpired() {
-			getAndUpdateTokens(ctx, &accessToken)
-		}
+		checkAccessToken(ctx, &accessToken)
 		activity, err := strava.GetActivity(event.object_id, accessToken.Code)
 		if err != nil {
 			return
@@ -73,16 +71,18 @@ func handlePost(ctx context.Context, req events.LambdaFunctionURLRequest) (event
 			return
 		}
 
-		if accessToken.IsExpired() {
-			getAndUpdateTokens(ctx, &accessToken)
-		}
+		checkAccessToken(ctx, &accessToken)
 		strava.UpdateActivity(event.object_id, accessToken.Code, description)
 	}()
 
 	return events.LambdaFunctionURLResponse{StatusCode: http.StatusOK}, nil
 }
 
-func getAndUpdateTokens(ctx context.Context, accessToken *database.AccessToken) {
+func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) {
+	if !accessToken.IsExpired() {
+		return
+	}
+
 	refreshToken, err := database.GetRefreshToken(ctx, athleteId)
 	newTokens, err := strava.GetNewTokens(refreshToken.Code)
 	if err != nil {
