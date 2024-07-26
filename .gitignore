@@ -23,3 +23,5 @@ go.work.sum
 
 .DS_Store
 .env
+bootstrap
+lambda_handler.zip
