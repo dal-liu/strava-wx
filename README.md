@@ -12,7 +12,7 @@
 
 3. You will be redirected to an error page with a URL that looks like
     ```
-    http://localhost/?state=&code=YOUR_CODE&scope=read,activity:read_all,activity:write
+    http://localhost/?state=&code=YOUR_CODE&scope=read,activity:read,activity:read_all,activity:write
     ```
     Copy `YOUR_CODE` from the URL.
 
