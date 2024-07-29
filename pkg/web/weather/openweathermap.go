@@ -11,41 +11,45 @@ import (
 )
 
 type weatherResponse struct {
-	data []struct {
-		dt         int
-		sunrise    int
-		sunset     int
-		temp       float64
-		feels_like float64
-		humidity   int
-		wind_speed float64
-		wind_deg   int
-		weather    []struct {
-			id int
+	Data []struct {
+		Dt         int
+		Sunrise    int
+		Sunset     int
+		Temp       float64
+		Feels_like float64
+		Humidity   int
+		Wind_speed float64
+		Wind_deg   int
+		Weather    []struct {
+			Id int
 		}
 	}
 }
 
 func (wr weatherResponse) getDescription() string {
+	if len(wr.Data) == 0 {
+		return ""
+	}
+
 	var sb strings.Builder
-	data := wr.data[0]
+	data := wr.Data[0]
 
 	sb.WriteString(wr.getCondition())
 	sb.WriteString(", ")
 
-	sb.WriteString(strconv.FormatFloat(math.Round(data.temp), 'f', -1, 64))
+	sb.WriteString(strconv.FormatFloat(math.Round(data.Temp), 'f', -1, 64))
 	sb.WriteString("°F, ")
 
 	sb.WriteString("Feels like ")
-	sb.WriteString(strconv.FormatFloat(math.Round(data.feels_like), 'f', -1, 64))
+	sb.WriteString(strconv.FormatFloat(math.Round(data.Feels_like), 'f', -1, 64))
 	sb.WriteString("°F, ")
 
 	sb.WriteString("Humidity ")
-	sb.WriteString(strconv.Itoa(data.humidity))
+	sb.WriteString(strconv.Itoa(data.Humidity))
 	sb.WriteString("%, ")
 
 	sb.WriteString("Wind ")
-	if wind := math.Round(data.wind_speed); wind == 0 {
+	if wind := math.Round(data.Wind_speed); wind == 0 {
 		sb.WriteString("0mph")
 	} else {
 		sb.WriteString(strconv.FormatFloat(wind, 'f', -1, 64))
@@ -57,7 +61,10 @@ func (wr weatherResponse) getDescription() string {
 }
 
 func (wr weatherResponse) getCondition() string {
-	switch wr.data[0].weather[0].id {
+	if len(wr.Data) == 0 || len(wr.Data[0].Weather) == 0 {
+		return ""
+	}
+	switch wr.Data[0].Weather[0].Id {
 	case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
 		return "Thunderstorms"
 	case 300, 301, 302, 310, 311, 312, 313, 314, 321:
@@ -109,14 +116,20 @@ func (wr weatherResponse) getCondition() string {
 }
 
 func (wr weatherResponse) isDay() bool {
-	dt := wr.data[0].dt
-	sunrise := wr.data[0].sunrise
-	sunset := wr.data[0].sunset
+	if len(wr.Data) == 0 {
+		return false
+	}
+	dt := wr.Data[0].Dt
+	sunrise := wr.Data[0].Sunrise
+	sunset := wr.Data[0].Sunset
 	return dt >= sunrise && dt < sunset
 }
 
 func (wr weatherResponse) getWindDirection() string {
-	deg := float64(wr.data[0].wind_deg)
+	if len(wr.Data) == 0 {
+		return ""
+	}
+	deg := float64(wr.Data[0].Wind_deg)
 	switch {
 	case deg >= 348.75 || deg < 11.25:
 		return "N"
