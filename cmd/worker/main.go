@@ -68,9 +68,9 @@ func processRecord(ctx context.Context, record events.SQSMessage) error {
 		return err
 	}
 
-	log.Println("Record parsed. Checking if event is activity creation...")
+	log.Println("Record parsed. Checking if event is a new activity...")
 	if event.Owner_id == athleteId && event.Object_type == "activity" && event.Aspect_type == "create" {
-		log.Println("Event is activity creation. Getting access token...")
+		log.Println("Event is a new activity. Getting access token...")
 		accessToken, err := database.GetAccessToken(ctx, athleteId)
 		if err != nil {
 			log.Println("ERROR:", err)
