@@ -38,14 +38,15 @@ func handleGet(req events.LambdaFunctionURLRequest) (resp events.LambdaFunctionU
 
 func handlePost(ctx context.Context, req events.LambdaFunctionURLRequest) (resp events.LambdaFunctionURLResponse, err error) {
 	log.Println("Received POST request. Creating SQS client...")
-	if err = queue.CreateClient(ctx); err != nil {
+	client, err := queue.CreateClient(ctx)
+	if err != nil {
 		log.Println("ERROR:", err)
 		resp.StatusCode = http.StatusInternalServerError
 		return resp, err
 	}
 
 	log.Println("Client created. Sending message to queue...")
-	if err = queue.Send(ctx, req.Body, os.Getenv("QUEUE_URL")); err != nil {
+	if err = client.Send(ctx, req.Body, os.Getenv("QUEUE_URL")); err != nil {
 		log.Println("ERROR:", err)
 		resp.StatusCode = http.StatusInternalServerError
 		return resp, err

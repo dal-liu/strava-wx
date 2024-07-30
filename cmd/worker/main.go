@@ -26,7 +26,8 @@ type webhookEvent struct {
 
 func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	log.Println("Received POST request. Creating DynamoDB client...")
-	if err := database.CreateClient(ctx); err != nil {
+	client, err := database.CreateClient(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -40,9 +41,10 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 
 	log.Println("Client created. Processing messages...")
 	for i, record := range req.Records {
-		log.Printf("Processing record %d...", i)
 		go func(i int, record events.SQSMessage) {
-			if err := processRecord(ctx, record); err != nil {
+			log.Printf("Processing record %d...", i)
+			if err := processRecord(client, ctx, record); err != nil {
+				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
 				log.Printf("Record %d processed.", i)
@@ -52,7 +54,6 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	}
 
 	for err := range errorChan {
-		log.Println("ERROR:", err)
 		return err
 	}
 
@@ -60,7 +61,7 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	return nil
 }
 
-func processRecord(ctx context.Context, record events.SQSMessage) error {
+func processRecord(client database.DynamoDBClient, ctx context.Context, record events.SQSMessage) error {
 	log.Println("Parsing record...")
 	var event webhookEvent
 	if err := json.Unmarshal([]byte(record.Body), &event); err != nil {
@@ -71,14 +72,14 @@ func processRecord(ctx context.Context, record events.SQSMessage) error {
 	log.Println("Record parsed. Checking if event is a new activity...")
 	if event.Owner_id == athleteId && event.Object_type == "activity" && event.Aspect_type == "create" {
 		log.Println("Event is a new activity. Getting access token...")
-		accessToken, err := database.GetAccessToken(ctx, athleteId)
+		accessToken, err := client.GetAccessToken(ctx, athleteId)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
 		}
 
 		log.Println("Retrieved access token.")
-		if err = checkAccessToken(ctx, &accessToken); err != nil {
+		if err = checkAccessToken(client, ctx, &accessToken); err != nil {
 			log.Println("ERROR:", err)
 			return err
 		}
@@ -99,7 +100,7 @@ func processRecord(ctx context.Context, record events.SQSMessage) error {
 			}
 
 			log.Println("Weather description retrieved. Updating activity...")
-			if err = checkAccessToken(ctx, &accessToken); err != nil {
+			if err = checkAccessToken(client, ctx, &accessToken); err != nil {
 				log.Println("ERROR:", err)
 				return err
 			}
@@ -119,11 +120,11 @@ func processRecord(ctx context.Context, record events.SQSMessage) error {
 	return nil
 }
 
-func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) error {
+func checkAccessToken(client database.DynamoDBClient, ctx context.Context, accessToken *database.AccessToken) error {
 	log.Println("Checking if access token is expired...")
 	if accessToken.IsExpired() {
 		log.Println("Access token is expired. Getting refresh token...")
-		refreshToken, err := database.GetRefreshToken(ctx, athleteId)
+		refreshToken, err := client.GetRefreshToken(ctx, athleteId)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
@@ -134,6 +135,7 @@ func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) er
 			log.Println("ERROR:", err)
 			return err
 		}
+		log.Println("New tokens retrieved.")
 
 		var wg sync.WaitGroup
 		errorChan := make(chan error, 2)
@@ -143,12 +145,12 @@ func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) er
 			close(errorChan)
 		}()
 
-		log.Println("New tokens retrieved. Updating tokens...")
-
 		accessToken.Code = newTokens.Access_token
 		accessToken.ExpiresAt = newTokens.Expires_at
 		go func() {
-			if err = database.UpdateAccessToken(ctx, *accessToken); err != nil {
+			log.Println("Updating access token...")
+			if err = client.UpdateAccessToken(ctx, *accessToken); err != nil {
+				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
 				log.Println("Access token updated.")
@@ -158,7 +160,9 @@ func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) er
 
 		refreshToken.Code = newTokens.Refresh_token
 		go func() {
-			if err = database.UpdateRefreshToken(ctx, refreshToken); err != nil {
+			log.Println("Updating refresh token...")
+			if err = client.UpdateRefreshToken(ctx, refreshToken); err != nil {
+				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
 				log.Println("Refresh token updated.")
@@ -167,7 +171,6 @@ func checkAccessToken(ctx context.Context, accessToken *database.AccessToken) er
 		}()
 
 		for err := range errorChan {
-			log.Println("ERROR:", err)
 			return err
 		}
 

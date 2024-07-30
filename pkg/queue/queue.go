@@ -8,19 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
-var svc *sqs.Client
-
-func CreateClient(ctx context.Context) error {
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return err
-	}
-	svc = sqs.NewFromConfig(cfg)
-	return nil
+type SQSClient struct {
+	svc *sqs.Client
 }
 
-func Send(ctx context.Context, messageBody, queueUrl string) error {
-	_, err := svc.SendMessage(ctx, &sqs.SendMessageInput{
+func (c SQSClient) Send(ctx context.Context, messageBody, queueUrl string) error {
+	_, err := c.svc.SendMessage(ctx, &sqs.SendMessageInput{
 		MessageBody: aws.String(messageBody),
 		QueueUrl:    aws.String(queueUrl),
 	})
@@ -28,4 +21,12 @@ func Send(ctx context.Context, messageBody, queueUrl string) error {
 		return err
 	}
 	return nil
+}
+
+func CreateClient(ctx context.Context) (SQSClient, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return SQSClient{}, err
+	}
+	return SQSClient{sqs.NewFromConfig(cfg)}, nil
 }
