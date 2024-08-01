@@ -111,10 +111,10 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 			}
 			log.Println("Activity updated.")
 		} else {
-			log.Println("Activity does not have start coordinates. Ignoring...")
+			log.Println("Activity does not have start coordinates. Returning...")
 		}
 	} else {
-		log.Println("Event is not activity creation. Ignoring...")
+		log.Println("Event is not activity creation. Returning...")
 	}
 
 	return nil

@@ -16,7 +16,7 @@ import (
 func handleGet(req events.LambdaFunctionURLRequest) (resp events.LambdaFunctionURLResponse, err error) {
 	log.Println("Received GET request. Verifying token...")
 	if req.QueryStringParameters["hub.verify_token"] != os.Getenv("VERIFY_TOKEN") {
-		log.Println("Token verification failed.")
+		log.Printf("Token verification failed: %+v\n", req)
 		resp.StatusCode = http.StatusUnauthorized
 		return resp, nil
 	}
