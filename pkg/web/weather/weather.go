@@ -49,10 +49,10 @@ func (wr weatherResponse) getDescription() string {
 	sb.WriteString("%, ")
 
 	sb.WriteString("Wind ")
-	if wind := math.Round(data.Wind_speed); wind == 0 {
+	if windSpeed := math.Round(data.Wind_speed); windSpeed == 0.0 {
 		sb.WriteString("0mph")
 	} else {
-		sb.WriteString(strconv.FormatFloat(wind, 'f', -1, 64))
+		sb.WriteString(strconv.FormatFloat(windSpeed, 'f', -1, 64))
 		sb.WriteString("mph from ")
 		sb.WriteString(wr.getWindDirection())
 	}
@@ -61,56 +61,55 @@ func (wr weatherResponse) getDescription() string {
 }
 
 func (wr weatherResponse) getCondition() string {
-	if len(wr.Data) == 0 || len(wr.Data[0].Weather) == 0 {
-		return ""
-	}
-	switch wr.Data[0].Weather[0].Id {
-	case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
-		return "Thunderstorms"
-	case 300, 301, 302, 310, 311, 312, 313, 314, 321:
-		return "Drizzle"
-	case 500, 501, 502, 503, 504, 511, 520, 521, 522, 531:
-		return "Rain"
-	case 600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622:
-		return "Snow"
-	case 701:
-		return "Mist"
-	case 711:
-		return "Smoke"
-	case 721:
-		return "Haze"
-	case 731:
-		return "Dust"
-	case 741:
-		return "Fog"
-	case 751:
-		return "Sand"
-	case 761:
-		return "Dust"
-	case 762:
-		return "Ash"
-	case 771:
-		return "Squall"
-	case 781:
-		return "Tornado"
-	case 800:
-		if wr.isDay() {
-			return "Sunny"
-		} else {
-			return "Clear"
+	if len(wr.Data) > 0 && len(wr.Data[0].Weather) > 0 {
+		switch wr.Data[0].Weather[0].Id {
+		case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
+			return "Thunderstorms"
+		case 300, 301, 302, 310, 311, 312, 313, 314, 321:
+			return "Drizzle"
+		case 500, 501, 502, 503, 504, 511, 520, 521, 522, 531:
+			return "Rain"
+		case 600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622:
+			return "Snow"
+		case 701:
+			return "Mist"
+		case 711:
+			return "Smoke"
+		case 721:
+			return "Haze"
+		case 731:
+			return "Dust"
+		case 741:
+			return "Fog"
+		case 751:
+			return "Sand"
+		case 761:
+			return "Dust"
+		case 762:
+			return "Ash"
+		case 771:
+			return "Squall"
+		case 781:
+			return "Tornado"
+		case 800:
+			if wr.isDay() {
+				return "Sunny"
+			} else {
+				return "Clear"
+			}
+		case 801:
+			if wr.isDay() {
+				return "Mostly sunny"
+			} else {
+				return "Mostly clear"
+			}
+		case 802:
+			return "Partly cloudy"
+		case 803:
+			return "Mostly cloudy"
+		case 804:
+			return "Cloudy"
 		}
-	case 801:
-		if wr.isDay() {
-			return "Mostly sunny"
-		} else {
-			return "Mostly clear"
-		}
-	case 802:
-		return "Partly cloudy"
-	case 803:
-		return "Mostly cloudy"
-	case 804:
-		return "Cloudy"
 	}
 	return ""
 }
@@ -126,43 +125,42 @@ func (wr weatherResponse) isDay() bool {
 }
 
 func (wr weatherResponse) getWindDirection() string {
-	if len(wr.Data) == 0 {
-		return ""
-	}
-	deg := float64(wr.Data[0].Wind_deg)
-	switch {
-	case deg >= 348.75 || deg < 11.25:
-		return "N"
-	case deg >= 11.25 && deg < 33.75:
-		return "NNE"
-	case deg >= 33.75 && deg < 56.25:
-		return "NE"
-	case deg >= 56.25 && deg < 78.75:
-		return "ENE"
-	case deg >= 78.75 && deg < 101.25:
-		return "E"
-	case deg >= 101.25 && deg < 123.75:
-		return "ESE"
-	case deg >= 123.75 && deg < 146.25:
-		return "SE"
-	case deg >= 146.25 && deg < 168.75:
-		return "SSE"
-	case deg >= 168.75 && deg < 191.25:
-		return "S"
-	case deg >= 191.25 && deg < 213.75:
-		return "SSW"
-	case deg >= 213.75 && deg < 236.25:
-		return "SW"
-	case deg >= 236.25 && deg < 258.75:
-		return "WSW"
-	case deg >= 258.75 && deg < 281.25:
-		return "W"
-	case deg >= 281.25 && deg < 303.75:
-		return "WNW"
-	case deg >= 303.75 && deg < 326.25:
-		return "NW"
-	case deg >= 326.25 && deg < 348.75:
-		return "NNW"
+	if len(wr.Data) > 0 {
+		deg := float64(wr.Data[0].Wind_deg)
+		switch {
+		case deg >= 348.75 || deg < 11.25:
+			return "N"
+		case deg >= 11.25 && deg < 33.75:
+			return "NNE"
+		case deg >= 33.75 && deg < 56.25:
+			return "NE"
+		case deg >= 56.25 && deg < 78.75:
+			return "ENE"
+		case deg >= 78.75 && deg < 101.25:
+			return "E"
+		case deg >= 101.25 && deg < 123.75:
+			return "ESE"
+		case deg >= 123.75 && deg < 146.25:
+			return "SE"
+		case deg >= 146.25 && deg < 168.75:
+			return "SSE"
+		case deg >= 168.75 && deg < 191.25:
+			return "S"
+		case deg >= 191.25 && deg < 213.75:
+			return "SSW"
+		case deg >= 213.75 && deg < 236.25:
+			return "SW"
+		case deg >= 236.25 && deg < 258.75:
+			return "WSW"
+		case deg >= 258.75 && deg < 281.25:
+			return "W"
+		case deg >= 281.25 && deg < 303.75:
+			return "WNW"
+		case deg >= 303.75 && deg < 326.25:
+			return "NW"
+		case deg >= 326.25 && deg < 348.75:
+			return "NNW"
+		}
 	}
 	return ""
 }
