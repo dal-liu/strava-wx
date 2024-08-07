@@ -34,10 +34,6 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	var wg sync.WaitGroup
 	errorChan := make(chan error, len(req.Records))
 	wg.Add(len(req.Records))
-	go func() {
-		wg.Wait()
-		close(errorChan)
-	}()
 
 	log.Println("Client created. Processing messages...")
 	for i, record := range req.Records {
@@ -53,8 +49,13 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 		}(i, record)
 	}
 
-	for err := range errorChan {
+	wg.Wait()
+	close(errorChan)
+
+	select {
+	case err := <-errorChan:
 		return err
+	default:
 	}
 
 	log.Println("All messages processed.")
@@ -140,10 +141,6 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 		var wg sync.WaitGroup
 		errorChan := make(chan error, 2)
 		wg.Add(2)
-		go func() {
-			wg.Wait()
-			close(errorChan)
-		}()
 
 		accessToken.Code = newTokens.Access_token
 		accessToken.ExpiresAt = newTokens.Expires_at
@@ -170,8 +167,13 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 			wg.Done()
 		}()
 
-		for err := range errorChan {
+		wg.Wait()
+		close(errorChan)
+
+		select {
+		case err := <-errorChan:
 			return err
+		default:
 		}
 
 		log.Println("Tokens updated.")

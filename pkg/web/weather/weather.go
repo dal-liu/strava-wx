@@ -20,8 +20,15 @@ type weatherResponse struct {
 		Humidity   int
 		Wind_speed float64
 		Wind_deg   int
+		Wind_gust  float64
 		Weather    []struct {
 			Id int
+		}
+		Rain struct {
+			One_hour float64 `json:"1h"`
+		}
+		Snow struct {
+			One_hour float64 `json:"1h"`
 		}
 	}
 }
@@ -49,11 +56,19 @@ func (wr weatherResponse) getDescription() string {
 	sb.WriteString("%, ")
 
 	sb.WriteString("Wind ")
-	if windSpeed := math.Round(data.Wind_speed); windSpeed == 0.0 {
+	if windSpeed := math.Round(data.Wind_speed); windSpeed == 0 {
 		sb.WriteString("0mph")
 	} else {
 		sb.WriteString(strconv.FormatFloat(windSpeed, 'f', -1, 64))
-		sb.WriteString("mph from ")
+		sb.WriteString("mph ")
+
+		if windGust := math.Round(data.Wind_gust); windGust > 0 {
+			sb.WriteString("with ")
+			sb.WriteString(strconv.FormatFloat(windGust, 'f', -1, 64))
+			sb.WriteString("mph gusts ")
+		}
+
+		sb.WriteString("from ")
 		sb.WriteString(wr.getWindDirection())
 	}
 
