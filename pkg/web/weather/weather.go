@@ -79,51 +79,59 @@ func (wr weatherResponse) getCondition() string {
 	if len(wr.Data) > 0 && len(wr.Data[0].Weather) > 0 {
 		switch wr.Data[0].Weather[0].Id {
 		case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
-			return "Thunderstorms"
+			return "🌩️ Thunderstorm"
 		case 300, 301, 302, 310, 311, 312, 313, 314, 321:
-			return "Drizzle"
+			return "🌧️ Drizzle"
 		case 500, 501, 502, 503, 504, 511, 520, 521, 522, 531:
-			return "Rain"
+			return "🌧️ Rain"
 		case 600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622:
-			return "Snow"
+			return "🌨️ Snow"
 		case 701:
-			return "Mist"
+			return "🌫️ Mist"
 		case 711:
-			return "Smoke"
+			return "🌫️ Smoke"
 		case 721:
-			return "Haze"
+			return "🌫️ Haze"
 		case 731:
-			return "Dust"
+			return "🌫️ Dust"
 		case 741:
-			return "Fog"
+			return "🌫️ Fog"
 		case 751:
-			return "Sand"
+			return "🌫️ Sand"
 		case 761:
-			return "Dust"
+			return "🌫️ Dust"
 		case 762:
-			return "Ash"
+			return "🌫️ Ash"
 		case 771:
-			return "Squall"
+			return "🌫️ Squall"
 		case 781:
-			return "Tornado"
+			return "🌪️ Tornado"
 		case 800:
 			if wr.isDay() {
-				return "Sunny"
+				return "☀️ Sunny"
 			} else {
-				return "Clear"
+				return "🌙 Clear"
 			}
 		case 801:
 			if wr.isDay() {
-				return "Mostly sunny"
+				return "🌤️ Mostly sunny"
 			} else {
-				return "Mostly clear"
+				return "🌙 Mostly clear"
 			}
 		case 802:
-			return "Partly cloudy"
+			if wr.isDay() {
+				return "⛅ Partly cloudy"
+			} else {
+				return "☁️ Partly cloudy"
+			}
 		case 803:
-			return "Mostly cloudy"
+			if wr.isDay() {
+				return "🌥️ Mostly cloudy"
+			} else {
+				return "☁️ Mostly cloudy"
+			}
 		case 804:
-			return "Cloudy"
+			return "☁️ Cloudy"
 		}
 	}
 	return ""
