@@ -72,6 +72,12 @@ func (wr weatherResponse) getDescription() string {
 		sb.WriteString(wr.getWindDirection())
 	}
 
+	if precip := wr.getPrecipitation(); precip >= 0.005 {
+		sb.WriteString(", Precipitation ")
+		sb.WriteString(strconv.FormatFloat(precip, 'f', 2, 64))
+		sb.WriteString(" in/hr")
+	}
+
 	return sb.String()
 }
 
@@ -186,6 +192,13 @@ func (wr weatherResponse) getWindDirection() string {
 		}
 	}
 	return ""
+}
+
+func (wr weatherResponse) getPrecipitation() float64 {
+	if len(wr.Data) == 0 {
+		return 0
+	}
+	return (wr.Data[0].Rain.One_hour + wr.Data[0].Snow.One_hour) / 25.4
 }
 
 func GetWeatherDescription(lat, lon float64, date string) (string, error) {
