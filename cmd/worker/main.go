@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
+	"strconv"
 	"sync"
 
 	"strava-wx/pkg/database"
@@ -13,8 +15,6 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
-
-const athleteId int = 55440166
 
 type webhookEvent struct {
 	Object_type string
@@ -71,6 +71,11 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 	}
 
 	log.Println("Record parsed. Checking if event is a new activity...")
+	athleteId, err := strconv.Atoi(os.Getenv("ATHLETE_ID"))
+	if err != nil {
+		log.Println("ERROR:", err)
+	}
+
 	if event.Owner_id == athleteId && event.Object_type == "activity" && event.Aspect_type == "create" {
 		log.Println("Event is a new activity. Getting access token...")
 		accessToken, err := client.GetAccessToken(ctx, athleteId)
@@ -84,6 +89,7 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 			log.Println("ERROR:", err)
 			return err
 		}
+
 		log.Println("Getting activity...")
 		activity, err := strava.GetActivity(event.Object_id, accessToken.Code)
 		if err != nil {
@@ -105,11 +111,13 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 				log.Println("ERROR:", err)
 				return err
 			}
+
 			log.Println("Updating activity...")
 			if err = strava.UpdateActivity(event.Object_id, accessToken.Code, description); err != nil {
 				log.Println("ERROR:", err)
 				return err
 			}
+
 			log.Println("Activity updated.")
 		} else {
 			log.Println("Activity does not have start coordinates. Returning...")
@@ -125,19 +133,25 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 	log.Println("Checking if access token is expired...")
 	if accessToken.IsExpired() {
 		log.Println("Access token is expired. Getting refresh token...")
+		athleteId, err := strconv.Atoi(os.Getenv("ATHLETE_ID"))
+		if err != nil {
+			log.Println("ERROR:", err)
+		}
+
 		refreshToken, err := client.GetRefreshToken(ctx, athleteId)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
 		}
+
 		log.Println("Refresh token retrieved. Getting new tokens...")
 		newTokens, err := strava.GetNewTokens(refreshToken.Code)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
 		}
-		log.Println("New tokens retrieved.")
 
+		log.Println("New tokens retrieved.")
 		var wg sync.WaitGroup
 		errorChan := make(chan error, 2)
 		wg.Add(2)

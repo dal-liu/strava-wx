@@ -4,3 +4,10 @@ build:
 
 	GOOS=linux GOARCH=arm64 go build -o cmd/worker/bootstrap cmd/worker/main.go
 	zip -j worker.zip cmd/worker/bootstrap
+
+clean:
+	rm -f webhook.zip worker.zip
+	cd cmd/webhook; rm -f bootstrap
+	cd cmd/worker; rm -f bootstrap
+
+.PHONY: build clean
