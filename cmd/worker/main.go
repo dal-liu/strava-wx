@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"os"
-	"strconv"
 	"sync"
 
 	"strava-wx/pkg/database"
@@ -71,20 +69,15 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 	}
 
 	log.Println("Record parsed. Checking if event is a new activity...")
-	athleteId, err := strconv.Atoi(os.Getenv("ATHLETE_ID"))
-	if err != nil {
-		log.Println("ERROR:", err)
-	}
-
-	if event.Owner_id == athleteId && event.Object_type == "activity" && event.Aspect_type == "create" {
+	if event.Object_type == "activity" && event.Aspect_type == "create" {
 		log.Println("Event is a new activity. Getting access token...")
-		accessToken, err := client.GetAccessToken(ctx, athleteId)
+		accessToken, err := client.GetAccessToken(ctx, event.Owner_id)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
 		}
-
 		log.Println("Retrieved access token.")
+
 		if err = checkAccessToken(client, ctx, &accessToken); err != nil {
 			log.Println("ERROR:", err)
 			return err
@@ -105,8 +98,8 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 				log.Println("ERROR:", err)
 				return err
 			}
+			log.Println("Weather description retrieved.")
 
-			log.Println("Weather description retrieved. Updating activity...")
 			if err = checkAccessToken(client, ctx, &accessToken); err != nil {
 				log.Println("ERROR:", err)
 				return err
@@ -117,11 +110,12 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 				log.Println("ERROR:", err)
 				return err
 			}
-
 			log.Println("Activity updated.")
+
 		} else {
 			log.Println("Activity does not have start coordinates. Returning...")
 		}
+
 	} else {
 		log.Println("Event is not activity creation. Returning...")
 	}
@@ -133,12 +127,7 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 	log.Println("Checking if access token is expired...")
 	if accessToken.IsExpired() {
 		log.Println("Access token is expired. Getting refresh token...")
-		athleteId, err := strconv.Atoi(os.Getenv("ATHLETE_ID"))
-		if err != nil {
-			log.Println("ERROR:", err)
-		}
-
-		refreshToken, err := client.GetRefreshToken(ctx, athleteId)
+		refreshToken, err := client.GetRefreshToken(ctx, accessToken.AthleteId)
 		if err != nil {
 			log.Println("ERROR:", err)
 			return err
@@ -150,8 +139,8 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 			log.Println("ERROR:", err)
 			return err
 		}
-
 		log.Println("New tokens retrieved.")
+
 		var wg sync.WaitGroup
 		errorChan := make(chan error, 2)
 		wg.Add(2)
@@ -192,6 +181,7 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 
 		log.Println("Tokens updated.")
 	}
+
 	return nil
 }
 

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -38,7 +39,7 @@ func (c DynamoDBClient) UpdateRefreshToken(ctx context.Context, token RefreshTok
 	return c.updateItem(ctx, token.GetKey(), "RefreshTokens", update)
 }
 
-func (c DynamoDBClient) getItem(ctx context.Context, key map[string]types.AttributeValue, tableName string, out interface{}) error {
+func (c DynamoDBClient) getItem(ctx context.Context, key map[string]types.AttributeValue, tableName string, out any) error {
 	resp, err := c.svc.GetItem(ctx, &dynamodb.GetItemInput{
 		Key:       key,
 		TableName: aws.String(tableName),
@@ -46,11 +47,12 @@ func (c DynamoDBClient) getItem(ctx context.Context, key map[string]types.Attrib
 	if err != nil {
 		return err
 	}
-	err = attributevalue.UnmarshalMap(resp.Item, out)
-	if err != nil {
-		return err
+
+	if len(resp.Item) == 0 {
+		return errors.New("Athlete id not found")
 	}
-	return nil
+
+	return attributevalue.UnmarshalMap(resp.Item, out)
 }
 
 func (c DynamoDBClient) updateItem(ctx context.Context, key map[string]types.AttributeValue, tableName string, update expression.UpdateBuilder) error {
@@ -58,6 +60,7 @@ func (c DynamoDBClient) updateItem(ctx context.Context, key map[string]types.Att
 	if err != nil {
 		return err
 	}
+
 	_, err = c.svc.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		Key:                       key,
 		TableName:                 aws.String(tableName),
@@ -68,6 +71,7 @@ func (c DynamoDBClient) updateItem(ctx context.Context, key map[string]types.Att
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
