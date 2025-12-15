@@ -68,11 +68,7 @@ func (c DynamoDBClient) updateItem(ctx context.Context, key map[string]types.Att
 		ExpressionAttributeValues: expr.Values(),
 		UpdateExpression:          expr.Update(),
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func CreateClient(ctx context.Context) (DynamoDBClient, error) {

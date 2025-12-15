@@ -19,19 +19,13 @@ func GetActivity(activityId int, accessToken string) (ar ActivityResponse, err e
 	}
 
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return ar, err
 	}
 
 	defer resp.Body.Close()
-
-	if err = json.NewDecoder(resp.Body).Decode(&ar); err != nil {
-		return ar, err
-	}
-
-	return ar, nil
+	return ar, json.NewDecoder(resp.Body).Decode(&ar)
 }
 
 func UpdateActivity(activityId int, accessToken string, description string) error {
@@ -45,9 +39,5 @@ func UpdateActivity(activityId int, accessToken string, description string) erro
 	req.Header.Set("Content-Type", "application/json")
 
 	_, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }

@@ -17,10 +17,7 @@ func (c SQSClient) Send(ctx context.Context, messageBody, queueUrl string) error
 		MessageBody: aws.String(messageBody),
 		QueueUrl:    aws.String(queueUrl),
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func CreateClient(ctx context.Context) (SQSClient, error) {

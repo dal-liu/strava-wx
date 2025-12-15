@@ -2,6 +2,7 @@ package weather
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -10,38 +11,161 @@ import (
 	"time"
 )
 
-type weatherResponse struct {
-	Data []struct {
-		Dt         int
-		Sunrise    int
-		Sunset     int
-		Temp       float64
-		Feels_like float64
-		Humidity   int
-		Wind_speed float64
-		Wind_deg   int
-		Wind_gust  float64
-		Weather    []struct {
-			Id int
-		}
-		Rain struct {
-			One_hour float64 `json:"1h"`
-		}
-		Snow struct {
-			One_hour float64 `json:"1h"`
-		}
-	}
+const epsilon float64 = 0.005
+const mmPerInch float64 = 25.4
+
+type weatherCondition struct {
+	Id int
 }
 
-func (wr weatherResponse) getDescription() string {
-	if len(wr.Data) == 0 {
-		return ""
+type weatherPrecipitation struct {
+	One_hour float64 `json:"1h"`
+}
+
+type weatherData struct {
+	Dt         int
+	Sunrise    int
+	Sunset     int
+	Temp       float64
+	Feels_like float64
+	Humidity   int
+	Wind_speed float64
+	Wind_deg   int
+	Wind_gust  float64
+	Weather    []weatherCondition
+	Rain       weatherPrecipitation
+	Snow       weatherPrecipitation
+}
+
+func (wd weatherData) isDay() bool {
+	return wd.Dt >= wd.Sunrise && wd.Dt < wd.Sunset
+}
+
+func (wd weatherData) getCondition() (string, error) {
+	if len(wd.Weather) == 0 {
+		return "", errors.New("No weather condition received")
 	}
 
-	var sb strings.Builder
+	switch wd.Weather[0].Id {
+	case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
+		return "🌩️ Thunderstorm", nil
+	case 300, 301, 302, 310, 311, 312, 313, 314, 321:
+		return "🌧️ Drizzle", nil
+	case 500, 501, 502, 503, 504, 511, 520, 521, 522, 531:
+		return "🌧️ Rain", nil
+	case 600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622:
+		return "🌨️ Snow", nil
+	case 701:
+		return "🌫️ Mist", nil
+	case 711:
+		return "🌫️ Smoke", nil
+	case 721:
+		return "🌫️ Haze", nil
+	case 731:
+		return "🌫️ Dust", nil
+	case 741:
+		return "🌫️ Fog", nil
+	case 751:
+		return "🌫️ Sand", nil
+	case 761:
+		return "🌫️ Dust", nil
+	case 762:
+		return "🌫️ Ash", nil
+	case 771:
+		return "🌫️ Squall", nil
+	case 781:
+		return "🌪️ Tornado", nil
+	case 800:
+		if wd.isDay() {
+			return "☀️ Sunny", nil
+		} else {
+			return "🌙 Clear", nil
+		}
+	case 801:
+		if wd.isDay() {
+			return "🌤️ Mostly sunny", nil
+		} else {
+			return "🌙 Mostly clear", nil
+		}
+	case 802:
+		if wd.isDay() {
+			return "⛅ Partly cloudy", nil
+		} else {
+			return "☁️ Partly cloudy", nil
+		}
+	case 803:
+		if wd.isDay() {
+			return "🌥️ Mostly cloudy", nil
+		} else {
+			return "☁️ Mostly cloudy", nil
+		}
+	case 804:
+		return "☁️ Cloudy", nil
+	}
+
+	return "", errors.New("Unknown weather condition")
+}
+
+func (wd weatherData) getWindDirection() string {
+	deg := float64(wd.Wind_deg)
+	switch {
+	case deg >= 348.75 || deg < 11.25:
+		return "N"
+	case deg >= 11.25 && deg < 33.75:
+		return "NNE"
+	case deg >= 33.75 && deg < 56.25:
+		return "NE"
+	case deg >= 56.25 && deg < 78.75:
+		return "ENE"
+	case deg >= 78.75 && deg < 101.25:
+		return "E"
+	case deg >= 101.25 && deg < 123.75:
+		return "ESE"
+	case deg >= 123.75 && deg < 146.25:
+		return "SE"
+	case deg >= 146.25 && deg < 168.75:
+		return "SSE"
+	case deg >= 168.75 && deg < 191.25:
+		return "S"
+	case deg >= 191.25 && deg < 213.75:
+		return "SSW"
+	case deg >= 213.75 && deg < 236.25:
+		return "SW"
+	case deg >= 236.25 && deg < 258.75:
+		return "WSW"
+	case deg >= 258.75 && deg < 281.25:
+		return "W"
+	case deg >= 281.25 && deg < 303.75:
+		return "WNW"
+	case deg >= 303.75 && deg < 326.25:
+		return "NW"
+	case deg >= 326.25 && deg < 348.75:
+		return "NNW"
+	}
+	return "?"
+}
+
+func (wd weatherData) getPrecipitation() float64 {
+	return (wd.Rain.One_hour + wd.Snow.One_hour) / mmPerInch
+}
+
+type weatherResponse struct {
+	Data []weatherData
+}
+
+func (wr weatherResponse) getDescription() (string, error) {
+	if len(wr.Data) == 0 {
+		return "", errors.New("No weather data received")
+	}
 	data := wr.Data[0]
 
-	sb.WriteString(wr.getCondition())
+	var sb strings.Builder
+
+	cond, err := data.getCondition()
+	if err != nil {
+		return "", err
+	}
+	sb.WriteString(cond)
 	sb.WriteString(", ")
 
 	sb.WriteString(strconv.FormatFloat(math.Round(data.Temp), 'f', -1, 64))
@@ -69,136 +193,16 @@ func (wr weatherResponse) getDescription() string {
 		}
 
 		sb.WriteString("from ")
-		sb.WriteString(wr.getWindDirection())
+		sb.WriteString(data.getWindDirection())
 	}
 
-	if precip := wr.getPrecipitation(); precip >= 0.005 {
+	if precip := data.getPrecipitation(); precip >= epsilon {
 		sb.WriteString(", Precipitation ")
 		sb.WriteString(strconv.FormatFloat(precip, 'f', 2, 64))
 		sb.WriteString(" in/hr")
 	}
 
-	return sb.String()
-}
-
-func (wr weatherResponse) getCondition() string {
-	if len(wr.Data) > 0 && len(wr.Data[0].Weather) > 0 {
-		switch wr.Data[0].Weather[0].Id {
-		case 200, 201, 202, 210, 211, 212, 221, 230, 231, 232:
-			return "🌩️ Thunderstorm"
-		case 300, 301, 302, 310, 311, 312, 313, 314, 321:
-			return "🌧️ Drizzle"
-		case 500, 501, 502, 503, 504, 511, 520, 521, 522, 531:
-			return "🌧️ Rain"
-		case 600, 601, 602, 611, 612, 613, 615, 616, 620, 621, 622:
-			return "🌨️ Snow"
-		case 701:
-			return "🌫️ Mist"
-		case 711:
-			return "🌫️ Smoke"
-		case 721:
-			return "🌫️ Haze"
-		case 731:
-			return "🌫️ Dust"
-		case 741:
-			return "🌫️ Fog"
-		case 751:
-			return "🌫️ Sand"
-		case 761:
-			return "🌫️ Dust"
-		case 762:
-			return "🌫️ Ash"
-		case 771:
-			return "🌫️ Squall"
-		case 781:
-			return "🌪️ Tornado"
-		case 800:
-			if wr.isDay() {
-				return "☀️ Sunny"
-			} else {
-				return "🌙 Clear"
-			}
-		case 801:
-			if wr.isDay() {
-				return "🌤️ Mostly sunny"
-			} else {
-				return "🌙 Mostly clear"
-			}
-		case 802:
-			if wr.isDay() {
-				return "⛅ Partly cloudy"
-			} else {
-				return "☁️ Partly cloudy"
-			}
-		case 803:
-			if wr.isDay() {
-				return "🌥️ Mostly cloudy"
-			} else {
-				return "☁️ Mostly cloudy"
-			}
-		case 804:
-			return "☁️ Cloudy"
-		}
-	}
-	return ""
-}
-
-func (wr weatherResponse) isDay() bool {
-	if len(wr.Data) == 0 {
-		return false
-	}
-	dt := wr.Data[0].Dt
-	sunrise := wr.Data[0].Sunrise
-	sunset := wr.Data[0].Sunset
-	return dt >= sunrise && dt < sunset
-}
-
-func (wr weatherResponse) getWindDirection() string {
-	if len(wr.Data) > 0 {
-		deg := float64(wr.Data[0].Wind_deg)
-		switch {
-		case deg >= 348.75 || deg < 11.25:
-			return "N"
-		case deg >= 11.25 && deg < 33.75:
-			return "NNE"
-		case deg >= 33.75 && deg < 56.25:
-			return "NE"
-		case deg >= 56.25 && deg < 78.75:
-			return "ENE"
-		case deg >= 78.75 && deg < 101.25:
-			return "E"
-		case deg >= 101.25 && deg < 123.75:
-			return "ESE"
-		case deg >= 123.75 && deg < 146.25:
-			return "SE"
-		case deg >= 146.25 && deg < 168.75:
-			return "SSE"
-		case deg >= 168.75 && deg < 191.25:
-			return "S"
-		case deg >= 191.25 && deg < 213.75:
-			return "SSW"
-		case deg >= 213.75 && deg < 236.25:
-			return "SW"
-		case deg >= 236.25 && deg < 258.75:
-			return "WSW"
-		case deg >= 258.75 && deg < 281.25:
-			return "W"
-		case deg >= 281.25 && deg < 303.75:
-			return "WNW"
-		case deg >= 303.75 && deg < 326.25:
-			return "NW"
-		case deg >= 326.25 && deg < 348.75:
-			return "NNW"
-		}
-	}
-	return ""
-}
-
-func (wr weatherResponse) getPrecipitation() float64 {
-	if len(wr.Data) == 0 {
-		return 0
-	}
-	return (wr.Data[0].Rain.One_hour + wr.Data[0].Snow.One_hour) / 25.4
+	return sb.String(), nil
 }
 
 func GetWeatherDescription(lat, lon float64, date string) (string, error) {
@@ -231,5 +235,5 @@ func GetWeatherDescription(lat, lon float64, date string) (string, error) {
 		return "", err
 	}
 
-	return wr.getDescription(), nil
+	return wr.getDescription()
 }
