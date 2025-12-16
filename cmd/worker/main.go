@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"sync"
 
@@ -26,6 +27,7 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	log.Println("Received POST request. Creating DynamoDB client...")
 	client, err := database.CreateClient(ctx)
 	if err != nil {
+		log.Println("ERROR:", err)
 		return err
 	}
 
@@ -36,12 +38,12 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 	log.Println("Client created. Processing messages...")
 	for i, record := range req.Records {
 		go func(i int, record events.SQSMessage) {
-			log.Printf("Processing record %d...", i)
+			log.Printf("Processing record %d...\n", i)
 			if err := processRecord(client, ctx, record); err != nil {
 				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
-				log.Printf("Record %d processed.", i)
+				log.Printf("Record %d processed.\n", i)
 			}
 			wg.Done()
 		}(i, record)
@@ -52,7 +54,11 @@ func workerHandler(ctx context.Context, req events.SQSEvent) error {
 
 	select {
 	case err := <-errorChan:
-		return err
+		var de *database.DatabaseError
+		var we *weather.WeatherError
+		if !errors.As(err, &de) && !errors.As(err, &we) {
+			return err
+		}
 	default:
 	}
 
@@ -64,7 +70,6 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 	log.Println("Parsing record...")
 	var event webhookEvent
 	if err := json.Unmarshal([]byte(record.Body), &event); err != nil {
-		log.Println("ERROR:", err)
 		return err
 	}
 
@@ -73,20 +78,17 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 		log.Println("Event is a new activity. Getting access token...")
 		accessToken, err := client.GetAccessToken(ctx, event.Owner_id)
 		if err != nil {
-			log.Println("ERROR:", err)
 			return err
 		}
 		log.Println("Retrieved access token.")
 
 		if err = checkAccessToken(client, ctx, &accessToken); err != nil {
-			log.Println("ERROR:", err)
 			return err
 		}
 
 		log.Println("Getting activity...")
 		activity, err := strava.GetActivity(event.Object_id, accessToken.Code)
 		if err != nil {
-			log.Println("ERROR:", err)
 			return err
 		}
 
@@ -95,19 +97,16 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 			log.Println("Activity has start coordinates. Getting weather description...")
 			description, err := weather.GetWeatherDescription(activity.Start_latlng[0], activity.Start_latlng[1], activity.Start_date)
 			if err != nil {
-				log.Println("ERROR:", err)
 				return err
 			}
 			log.Println("Weather description retrieved.")
 
 			if err = checkAccessToken(client, ctx, &accessToken); err != nil {
-				log.Println("ERROR:", err)
 				return err
 			}
 
 			log.Println("Updating activity...")
 			if err = strava.UpdateActivity(event.Object_id, accessToken.Code, description); err != nil {
-				log.Println("ERROR:", err)
 				return err
 			}
 			log.Println("Activity updated.")
@@ -129,28 +128,25 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 		log.Println("Access token is expired. Getting refresh token...")
 		refreshToken, err := client.GetRefreshToken(ctx, accessToken.AthleteId)
 		if err != nil {
-			log.Println("ERROR:", err)
 			return err
 		}
 
 		log.Println("Refresh token retrieved. Getting new tokens...")
 		newTokens, err := strava.GetNewTokens(refreshToken.Code)
 		if err != nil {
-			log.Println("ERROR:", err)
 			return err
 		}
 		log.Println("New tokens retrieved.")
 
-		var wg sync.WaitGroup
 		errorChan := make(chan error, 2)
+		var wg sync.WaitGroup
 		wg.Add(2)
 
-		accessToken.Code = newTokens.Access_token
-		accessToken.ExpiresAt = newTokens.Expires_at
 		go func() {
 			log.Println("Updating access token...")
+			accessToken.Code = newTokens.Access_token
+			accessToken.ExpiresAt = newTokens.Expires_at
 			if err = client.UpdateAccessToken(ctx, *accessToken); err != nil {
-				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
 				log.Println("Access token updated.")
@@ -158,11 +154,10 @@ func checkAccessToken(client database.DynamoDBClient, ctx context.Context, acces
 			wg.Done()
 		}()
 
-		refreshToken.Code = newTokens.Refresh_token
 		go func() {
 			log.Println("Updating refresh token...")
+			refreshToken.Code = newTokens.Refresh_token
 			if err = client.UpdateRefreshToken(ctx, refreshToken); err != nil {
-				log.Println("ERROR:", err)
 				errorChan <- err
 			} else {
 				log.Println("Refresh token updated.")

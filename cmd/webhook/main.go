@@ -63,9 +63,8 @@ func webhookHandler(ctx context.Context, req events.LambdaFunctionURLRequest) (e
 		return handleGet(req)
 	case "POST":
 		return handlePost(ctx, req)
-	default:
-		return events.LambdaFunctionURLResponse{StatusCode: http.StatusMethodNotAllowed}, nil
 	}
+	return events.LambdaFunctionURLResponse{StatusCode: http.StatusMethodNotAllowed}, nil
 }
 
 func main() {

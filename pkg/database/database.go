@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -11,6 +11,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
+
+type DatabaseError struct {
+	id types.AttributeValue
+}
+
+func (e *DatabaseError) Error() string {
+	return fmt.Sprintf("Athlete id %v not found", e.id)
+}
 
 type DynamoDBClient struct {
 	svc *dynamodb.Client
@@ -49,7 +57,7 @@ func (c DynamoDBClient) getItem(ctx context.Context, key map[string]types.Attrib
 	}
 
 	if len(resp.Item) == 0 {
-		return errors.New("Athlete id not found")
+		return &DatabaseError{key["AthleteId"]}
 	}
 
 	return attributevalue.UnmarshalMap(resp.Item, out)

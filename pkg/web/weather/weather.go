@@ -2,7 +2,6 @@ package weather
 
 import (
 	"encoding/json"
-	"errors"
 	"math"
 	"net/http"
 	"os"
@@ -13,6 +12,14 @@ import (
 
 const epsilon float64 = 0.005
 const mmPerInch float64 = 25.4
+
+type WeatherError struct {
+	message string
+}
+
+func (e *WeatherError) Error() string {
+	return e.message
+}
 
 type weatherCondition struct {
 	Id int
@@ -43,7 +50,7 @@ func (wd weatherData) isDay() bool {
 
 func (wd weatherData) getCondition() (string, error) {
 	if len(wd.Weather) == 0 {
-		return "", errors.New("No weather condition received")
+		return "", &WeatherError{"No weather condition received"}
 	}
 
 	switch wd.Weather[0].Id {
@@ -103,7 +110,7 @@ func (wd weatherData) getCondition() (string, error) {
 		return "☁️ Cloudy", nil
 	}
 
-	return "", errors.New("Unknown weather condition")
+	return "", &WeatherError{"Unknown weather condition"}
 }
 
 func (wd weatherData) getWindDirection() string {
@@ -155,7 +162,7 @@ type weatherResponse struct {
 
 func (wr weatherResponse) getDescription() (string, error) {
 	if len(wr.Data) == 0 {
-		return "", errors.New("No weather data received")
+		return "", &WeatherError{"No weather data received"}
 	}
 	data := wr.Data[0]
 

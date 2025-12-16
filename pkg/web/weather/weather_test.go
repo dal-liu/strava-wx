@@ -39,19 +39,19 @@ func TestGetCondition(t *testing.T) {
 			resultErr: "No weather condition received",
 		},
 		"unknown weather condition": {
-			input:     weatherData{Weather: []weatherCondition{{Id: 0}}},
+			input:     weatherData{Weather: []weatherCondition{{0}}},
 			resultErr: "Unknown weather condition",
 		},
 		"cloudy": {
-			input:  weatherData{Weather: []weatherCondition{{Id: 804}}},
+			input:  weatherData{Weather: []weatherCondition{{804}}},
 			result: "☁️ Cloudy",
 		},
 		"sunny": {
-			input:  weatherData{Dt: 2, Sunrise: 1, Sunset: 3, Weather: []weatherCondition{{Id: 800}}},
+			input:  weatherData{Dt: 2, Sunrise: 1, Sunset: 3, Weather: []weatherCondition{{800}}},
 			result: "☀️ Sunny",
 		},
 		"clear": {
-			input:  weatherData{Dt: 4, Sunrise: 1, Sunset: 3, Weather: []weatherCondition{{Id: 800}}},
+			input:  weatherData{Dt: 4, Sunrise: 1, Sunset: 3, Weather: []weatherCondition{{800}}},
 			result: "🌙 Clear",
 		},
 	}
@@ -116,7 +116,7 @@ func TestGetPrecipitation(t *testing.T) {
 			result: 0.0,
 		},
 		"1.0": {
-			input:  weatherData{Rain: weatherPrecipitation{One_hour: 12.7}, Snow: weatherPrecipitation{One_hour: 12.7}},
+			input:  weatherData{Rain: weatherPrecipitation{12.7}, Snow: weatherPrecipitation{12.7}},
 			result: 1.0,
 		},
 	}
@@ -140,7 +140,7 @@ func TestGetDescription(t *testing.T) {
 			resultErr: "No weather data received",
 		},
 		"no weather condition received": {
-			input:     weatherResponse{Data: []weatherData{{}}},
+			input:     weatherResponse{[]weatherData{{}}},
 			resultErr: "No weather condition received",
 		},
 	}
