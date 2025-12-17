@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -212,7 +211,7 @@ func (wr weatherResponse) getDescription() (string, error) {
 	return sb.String(), nil
 }
 
-func GetWeatherDescription(lat, lon float64, date string) (string, error) {
+func GetWeatherDescription(client *http.Client, apiKey string, lat, lon float64, date string) (string, error) {
 	dt, err := time.Parse(time.RFC3339, date)
 	if err != nil {
 		return "", err
@@ -227,10 +226,10 @@ func GetWeatherDescription(lat, lon float64, date string) (string, error) {
 	q.Add("lat", strconv.FormatFloat(lat, 'f', -1, 64))
 	q.Add("lon", strconv.FormatFloat(lon, 'f', -1, 64))
 	q.Add("dt", strconv.FormatInt(dt.Unix(), 10))
-	q.Add("appid", os.Getenv("WEATHER_API_KEY"))
+	q.Add("appid", apiKey)
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
 	}

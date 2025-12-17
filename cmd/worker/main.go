@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
+	"os"
 	"sync"
 
 	"strava-wx/pkg/database"
@@ -87,7 +89,7 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 		}
 
 		log.Println("Getting activity...")
-		activity, err := strava.GetActivity(event.Object_id, accessToken.Code)
+		activity, err := strava.GetActivity(http.DefaultClient, event.Object_id, accessToken.Code)
 		if err != nil {
 			return err
 		}
@@ -95,7 +97,7 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 		log.Println("Activity retrieved. Checking if activity has start coordinates...")
 		if len(activity.Start_latlng) == 2 {
 			log.Println("Activity has start coordinates. Getting weather description...")
-			description, err := weather.GetWeatherDescription(activity.Start_latlng[0], activity.Start_latlng[1], activity.Start_date)
+			description, err := weather.GetWeatherDescription(http.DefaultClient, os.Getenv("WEATHER_API_KEY"), activity.Start_latlng[0], activity.Start_latlng[1], activity.Start_date)
 			if err != nil {
 				return err
 			}
@@ -106,7 +108,7 @@ func processRecord(client database.DynamoDBClient, ctx context.Context, record e
 			}
 
 			log.Println("Updating activity...")
-			if err = strava.UpdateActivity(event.Object_id, accessToken.Code, description); err != nil {
+			if err = strava.UpdateActivity(http.DefaultClient, event.Object_id, accessToken.Code, description); err != nil {
 				return err
 			}
 			log.Println("Activity updated.")

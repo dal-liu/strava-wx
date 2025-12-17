@@ -12,14 +12,14 @@ type ActivityResponse struct {
 	Start_latlng []float64
 }
 
-func GetActivity(activityId int, accessToken string) (ar ActivityResponse, err error) {
+func GetActivity(client *http.Client, activityId int, accessToken string) (ar ActivityResponse, err error) {
 	req, err := http.NewRequest("GET", "https://www.strava.com/api/v3/activities/"+strconv.Itoa(activityId), nil)
 	if err != nil {
 		return ar, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return ar, err
 	}
@@ -28,7 +28,7 @@ func GetActivity(activityId int, accessToken string) (ar ActivityResponse, err e
 	return ar, json.NewDecoder(resp.Body).Decode(&ar)
 }
 
-func UpdateActivity(activityId int, accessToken string, description string) error {
+func UpdateActivity(client *http.Client, activityId int, accessToken string, description string) error {
 	payload := []byte(`{"description":"` + description + `"}`)
 	req, err := http.NewRequest("PUT", "https://www.strava.com/api/v3/activities/"+strconv.Itoa(activityId), bytes.NewBuffer(payload))
 	if err != nil {
@@ -38,6 +38,6 @@ func UpdateActivity(activityId int, accessToken string, description string) erro
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	_, err = http.DefaultClient.Do(req)
+	_, err = client.Do(req)
 	return err
 }
